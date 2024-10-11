@@ -1,5 +1,5 @@
 use crate::tools::{
-    card_client::{card_to_response, get_all_cards, get_cards, CardResponse, YuGiClient},
+    card_client::{card_to_response, get_cards, CardResponse, YuGiClient},
     debug_tools::print_debug,
     response::build_response,
 };
@@ -30,7 +30,7 @@ async fn handler_get_data_by_id(
     print_debug("handler_get_data_by_id", "HANDLER");
     match get_cards(client, doc! { "id": params.id }).await {
         Some(card) => {
-            let card_data = card_to_response(card);
+            let card_data = card_to_response(card.into_iter().nth(0).unwrap());
             return build_response(200, "success", "Card retrieved", card_data);
         }
         None => {
@@ -41,8 +41,18 @@ async fn handler_get_data_by_id(
 
 async fn handler_get_all_cards(
     Extension(client): Extension<YuGiClient>,
-) -> Json<Vec<CardResponse>> {
+) -> Json<serde_json::Value> {
     print_debug("handler_get_all_cards", "HANDLER");
-    let cards = get_all_cards(client).await;
-    axum::Json(cards)
+    let mut cards_res: Vec<CardResponse> = vec![];
+    match get_cards(client, doc! {}).await {
+        Some(cards) => {
+            for card in cards {
+                cards_res.push(card_to_response(card));
+            }
+        }
+        None => {
+            return build_response(404, "not found", "No cards found.", "None");
+        }
+    }
+    build_response(200, "success", "Cards retrieved succesfully", cards_res)
 }
