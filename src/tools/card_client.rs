@@ -70,14 +70,14 @@ pub struct CardImage {
     pub image_url_cropped: String,
 }
 
-pub async fn get_cards(connection: YuGiClient, filter: Document) -> Option<Vec<Card>> {
+pub async fn get_cards(connection: YuGiClient, filter: Document) -> Option<Vec<CardResponse>> {
     // Função para buscar cartas no banco
     let mut data = connection.card_db.find(filter).await.unwrap();
-    let mut cards: Vec<Card> = vec![];
+    let mut cards: Vec<CardResponse> = vec![];
     while let Some(result) = data.next().await {
         match result {
             Ok(card) => {
-                cards.push(card);
+                cards.push(card_to_response(card));
             }
             Err(_e) => {}
         }

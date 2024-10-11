@@ -1,12 +1,12 @@
 use crate::tools::{
-    card_client::{card_to_response, get_cards, CardResponse, YuGiClient},
+    card_client::{get_cards, YuGiClient},
     debug_tools::print_debug,
     response::build_response,
 };
-use axum::routing::get;
+use axum::extract::Query;
 use axum::Extension;
 use axum::Router;
-use axum::{extract::Query, Json};
+use axum::{response::IntoResponse, routing::get};
 use mongodb::bson::doc;
 use serde::Deserialize;
 
@@ -26,11 +26,11 @@ struct CardParams {
 async fn handler_get_data_by_id(
     Query(params): Query<CardParams>,
     Extension(client): Extension<YuGiClient>,
-) -> Json<serde_json::Value> {
+) -> impl IntoResponse {
     print_debug("handler_get_data_by_id", "HANDLER");
     match get_cards(client, doc! { "id": params.id }).await {
         Some(card) => {
-            let card_data = card_to_response(card.into_iter().nth(0).unwrap());
+            let card_data = card.into_iter().nth(0).unwrap();
             return build_response(200, "success", "Card retrieved", card_data);
         }
         None => {
@@ -39,20 +39,12 @@ async fn handler_get_data_by_id(
     }
 }
 
-async fn handler_get_all_cards(
-    Extension(client): Extension<YuGiClient>,
-) -> Json<serde_json::Value> {
+async fn handler_get_all_cards(Extension(client): Extension<YuGiClient>) -> impl IntoResponse {
     print_debug("handler_get_all_cards", "HANDLER");
-    let mut cards_res: Vec<CardResponse> = vec![];
     match get_cards(client, doc! {}).await {
-        Some(cards) => {
-            for card in cards {
-                cards_res.push(card_to_response(card));
-            }
-        }
+        Some(cards) => return build_response(200, "success", "Cards retrieved succesfully", cards),
         None => {
             return build_response(404, "not found", "No cards found.", "None");
         }
     }
-    build_response(200, "success", "Cards retrieved succesfully", cards_res)
 }
